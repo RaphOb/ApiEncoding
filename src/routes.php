@@ -14,4 +14,8 @@ return function (App $app) {
         // Render index view
         return $container->get('renderer')->render($response, 'index.phtml', $args);
     });
+
+    $app->group('/api', function () use ($app) {
+       $app->get('/encode', 'encode');
+    });
 };

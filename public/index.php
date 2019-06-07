@@ -4,10 +4,12 @@ use Firebase\JWT\JWT;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 
+use FFMpeg\Format\Video\X264;
+
 if (PHP_SAPI == 'cli-server') {
     // To help the built-in PHP dev server, check if the request was actually for
     // something which should probably be served as a static file
-    $url  = parse_url($_SERVER['REQUEST_URI']);
+    $url = parse_url($_SERVER['REQUEST_URI']);
     $file = __DIR__ . $url['path'];
     if (is_file($file)) {
         return false;
@@ -35,15 +37,18 @@ $routes = require __DIR__ . '/../src/routes.php';
 $routes($app);
 
 //import
-require __DIR__. '/../src/common.php';
+require __DIR__ . '/../src/common.php';
 
 // Run app
 $app->run();
 
 function encode(Request $request, Response $response)
 {
-    $data = $request->getParsedBody();
+
+    encoding($request);
     $header = $request->getHeaders();
+    $jwtApi = $header['JWT'];
+    $path = $header['PATH'];
 
     $key = "mangetesmorts";
 
@@ -53,8 +58,7 @@ function encode(Request $request, Response $response)
         "exp" => time() + (10000),
         "context" => [
             "user" => [
-                "username" => $header['username'],
-                "user_id" => $header['id']
+                "path" => $path,
             ]
         ]
     );
@@ -65,13 +69,37 @@ function encode(Request $request, Response $response)
         echo json_encode($e);
     }
 
-    if (jwt == $header['jwt']) {
+    if (jwt == $jwtApi) {
         $httpcode = 200;
-        //TODO ENCODE
+        encoding($request);
+        //TODO envoyer notif
     } else {
         $httpcode = 403;
         displayErrorJSON("Forbidden");
     }
-    return $response->withHeader('Content-Type', 'application/json')
-        ->withStatus($httpcode);
+    return $response->withHeader('Content-Type', 'application/json');
+
+}
+
+function encoding(Request $request)
+{
+    $path = $request->getAttribute("PATH");
+    $ffmpeg = FFMpeg\FFMpeg::create();
+    $video = $ffmpeg->open('/home/raphael/Desktop/test.mp4');
+    $directory = '/home/raphael/Desktop/';
+    $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1' . $path);
+    $tableau = preg_split('/[\n]+/', $cmd);
+    $width = $tableau[0];
+    $height = $tableau[1];
+    $mp4Format = new X264();
+    $mp4Format->setAudioCodec("aac");
+    $video
+        ->filters()
+        ->resize(new FFMpeg\Coordinate\Dimension(320, 240))
+        ->synchronize();
+    $video
+        ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
+        ->save('frame.jpg');
+    $video
+        ->save($mp4Format, $directory .'/video2.mp4');
 }
