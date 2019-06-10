@@ -89,17 +89,23 @@ function encoding(Request $request)
     $directory = '/home/raphael/Desktop/';
     $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
-    $width = $tableau[0];
+//    $width = $tableau[0];
     $height = $tableau[1];
-    $mp4Format = new X264();
-    $mp4Format->setAudioCodec("aac");
-    $video
-        ->filters()
-        ->resize(new FFMpeg\Coordinate\Dimension(320, 240))
-        ->synchronize();
-    $video
-        ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
-        ->save('frame.jpg');
-    $video
-        ->save($mp4Format, $directory .'/video2.mp4');
+    $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
+    $index = array_search($height, array_keys($sizers));
+    $keys = array_keys($sizers);
+    $values = array_Values($sizers);
+    for ($i = $index; $i < sizeof($sizers); $i++) {
+        $mp4Format = new X264();
+        $mp4Format->setAudioCodec("aac");
+        $video
+            ->filters()
+            ->resize(new FFMpeg\Coordinate\Dimension($values[$i], $keys[$i]))
+            ->synchronize();
+        $video
+            ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
+            ->save('frame.jpg');
+        $video
+            ->save($mp4Format, $directory . '/video2.'.$keys[$i].'.mp4');
+    }
 }
