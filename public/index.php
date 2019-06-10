@@ -1,8 +1,8 @@
 <?php
 
-use Firebase\JWT\JWT;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
+use Firebase\JWT\JWT;
 
 use FFMpeg\Format\Video\X264;
 
@@ -45,11 +45,9 @@ $app->run();
 function encode(Request $request, Response $response)
 {
 
-    encoding($request);
     $header = $request->getHeaders();
-    $jwtApi = $header['JWT'];
-    $path = $header['PATH'];
-
+    $jwtApi = $request->getHeader("JWT");
+    $path = $request->getHeader("PATH");
     $key = "mangetesmorts";
 
     $playload = array(
@@ -71,7 +69,8 @@ function encode(Request $request, Response $response)
 
     if (jwt == $jwtApi) {
         $httpcode = 200;
-        encoding($request);
+//        encoding($request);
+        echo (json_encode("c bon"));
         //TODO envoyer notif
     } else {
         $httpcode = 403;
@@ -84,17 +83,17 @@ function encode(Request $request, Response $response)
 function encoding(Request $request)
 {
     $path = $request->getAttribute("PATH");
+    $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
+    $keys = array_keys($sizers);
+    $values = array_Values($sizers);
+
     $ffmpeg = FFMpeg\FFMpeg::create();
     $video = $ffmpeg->open('/home/raphael/Desktop/test.mp4');
     $directory = '/home/raphael/Desktop/';
-    $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1' . $path);
+    $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1 ' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
-//    $width = $tableau[0];
     $height = $tableau[1];
-    $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
     $index = array_search($height, array_keys($sizers));
-    $keys = array_keys($sizers);
-    $values = array_Values($sizers);
     for ($i = $index; $i < sizeof($sizers); $i++) {
         $mp4Format = new X264();
         $mp4Format->setAudioCodec("aac");
@@ -106,6 +105,7 @@ function encoding(Request $request)
             ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
             ->save('frame.jpg');
         $video
-            ->save($mp4Format, $directory . '/video2.'.$keys[$i].'.mp4');
+            ->save($mp4Format, $directory . '/video2_' . $keys[$i] . '.mp4');
     }
+
 }
