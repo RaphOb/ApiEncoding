@@ -16,9 +16,9 @@ if (PHP_SAPI == 'cli-server') {
     }
 }
 
-require __DIR__ . '/../vendor/autoload.php';
 
 session_start();
+require __DIR__ . '/../vendor/autoload.php';
 
 // Instantiate the app
 $settings = require __DIR__ . '/../src/settings.php';
@@ -44,10 +44,8 @@ $app->run();
 
 function encode(Request $request, Response $response)
 {
-
-    $header = $request->getHeaders();
-    $jwtApi = $request->getHeader("JWT");
-    $path = $request->getHeader("PATH");
+    $jwtApi = $request->getHeaderLine('JWT');
+    $path = $request->getHeaderLine('PATH');
     $key = "mangetesmorts";
 
     $playload = array(
@@ -67,10 +65,10 @@ function encode(Request $request, Response $response)
         echo json_encode($e);
     }
 
-    if (jwt == $jwtApi) {
+    if ($jwt == $jwtApi) {
         $httpcode = 200;
 //        encoding($request);
-        echo (json_encode("c bon"));
+        echo(json_encode("c bon"));
         //TODO envoyer notif
     } else {
         $httpcode = 403;
@@ -107,5 +105,4 @@ function encoding(Request $request)
         $video
             ->save($mp4Format, $directory . '/video2_' . $keys[$i] . '.mp4');
     }
-
 }
