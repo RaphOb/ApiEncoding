@@ -46,6 +46,7 @@ function encode(Request $request, Response $response)
 {
     $jwtApi = $request->getHeaderLine('JWT');
     $path = $request->getHeaderLine('PATH');
+    $source = $request->getHeaderLine('SOURCE');
     $key = "mangetesmorts";
 
     $playload = array(
@@ -67,7 +68,7 @@ function encode(Request $request, Response $response)
 
     if ($jwt == $jwtApi) {
         $httpcode = 200;
-//        encoding($request);
+//        encoding($path, $source);
         echo(json_encode("c bon"));
         //TODO envoyer notif
     } else {
@@ -78,15 +79,14 @@ function encode(Request $request, Response $response)
 
 }
 
-function encoding(Request $request)
+function encoding($path, $source)
 {
-    $path = $request->getAttribute("PATH");
     $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
     $keys = array_keys($sizers);
     $values = array_Values($sizers);
 
     $ffmpeg = FFMpeg\FFMpeg::create();
-    $video = $ffmpeg->open('/home/raphael/Desktop/test.mp4');
+    $video = $ffmpeg->open($path. $source);
     $directory = '/home/raphael/Desktop/';
     $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1 ' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
@@ -103,6 +103,6 @@ function encoding(Request $request)
             ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
             ->save('frame.jpg');
         $video
-            ->save($mp4Format, $directory . '/video2_' . $keys[$i] . '.mp4');
+            ->save($mp4Format, $directory . $source .'_ ' . $keys[$i] . '.mp4');
     }
 }
