@@ -3,6 +3,7 @@
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use Firebase\JWT\JWT;
+use GuzzleHttp\Client;
 
 use FFMpeg\Format\Video\X264;
 
@@ -68,14 +69,16 @@ function encode(Request $request, Response $response)
 
     if ($jwt == $jwtApi) {
         $httpcode = 200;
-//        encoding($path, $source);
+//      encoding($path, $source);
+
         echo(json_encode("c bon"));
         //TODO envoyer notif
     } else {
         $httpcode = 403;
         displayErrorJSON("Forbidden");
     }
-    return $response->withHeader('Content-Type', 'application/json');
+    return $response->withHeader('Content-Type', 'application/json')
+                    ->withStatus($httpcode);
 
 }
 
@@ -86,7 +89,7 @@ function encoding($path, $source)
     $values = array_Values($sizers);
 
     $ffmpeg = FFMpeg\FFMpeg::create();
-    $video = $ffmpeg->open($path. $source);
+    $video = $ffmpeg->open($path . $source);
     $directory = '/home/raphael/Desktop/';
     $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1 ' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
@@ -103,6 +106,6 @@ function encoding($path, $source)
             ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
             ->save('frame.jpg');
         $video
-            ->save($mp4Format, $directory . $source .'_ ' . $keys[$i] . '.mp4');
+            ->save($mp4Format, $directory . $source . '_ ' . $keys[$i] . '.mp4');
     }
 }
