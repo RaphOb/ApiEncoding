@@ -42,12 +42,8 @@ require __DIR__ . '/../src/common.php';
 
 // Run app
 $app->run();
-
-function encode(Request $request, Response $response)
+function authenticateJwt($path)
 {
-    $jwtApi = $request->getHeaderLine('JWT');
-    $path = $request->getHeaderLine('PATH');
-    $source = $request->getHeaderLine('SOURCE');
     $key = "mangetesmorts";
 
     $playload = array(
@@ -63,13 +59,25 @@ function encode(Request $request, Response $response)
 
     try {
         $jwt = JWT::encode($playload, $key);
+        return $jwt;
     } catch (Exception $e) {
         echo json_encode($e);
+        return "OUuups";
     }
+}
+
+function encode(Request $request, Response $response)
+{
+    $jwtApi = $request->getHeaderLine('JWT');
+    $path = $request->getHeaderLine('PATH');
+    $source = $request->getHeaderLine('SOURCE');
+    $id_video = $request->getHeaderLine('ID_VIDEO');
+    $jwt = authenticateJwt($path);
 
     if ($jwt == $jwtApi) {
-        $httpcode = 200;
-//      encoding($path, $source);
+        $httpcode = 201;
+      encoding($path, $source, $id_video);
+
 
         echo(json_encode("c bon"));
         //TODO envoyer notif
@@ -78,23 +86,24 @@ function encode(Request $request, Response $response)
         displayErrorJSON("Forbidden");
     }
     return $response->withHeader('Content-Type', 'application/json')
-                    ->withStatus($httpcode);
+        ->withStatus($httpcode);
 
 }
 
-function encoding($path, $source)
+function encoding($path, $source, $id)
 {
     $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
     $keys = array_keys($sizers);
     $values = array_Values($sizers);
 
     $ffmpeg = FFMpeg\FFMpeg::create();
-    $video = $ffmpeg->open($path . $source);
-    $directory = '/home/raphael/Desktop/';
+    $video = $ffmpeg->open($path);
+    $directory = '/home/raphael/Desktop';
     $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1 ' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
     $height = $tableau[1];
     $index = array_search($height, array_keys($sizers));
+    $client = new GuzzleHttp\Client();
     for ($i = $index; $i < sizeof($sizers); $i++) {
         $mp4Format = new X264();
         $mp4Format->setAudioCodec("aac");
@@ -106,6 +115,19 @@ function encoding($path, $source)
             ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
             ->save('frame.jpg');
         $video
-            ->save($mp4Format, $directory . $source . '_ ' . $keys[$i] . '.mp4');
+            ->save($mp4Format, $directory . $source . '_' . $keys[$i] . '.mp4');
+        $path = $directory . $source . '_' . $keys[$i] . '.mp4';
+        $jwt = authenticateJwt($path);
+        $client->request('GET', '192.168.197.133:8080/api/updateVideoFormat', [
+            'future' => true,
+                'headers' => [
+                    'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
+                    "ID_VIDEO" => $id,
+                    'FORMAT' => $values[$i] . ' X ' . $keys[$i],
+                    'JWT' => $jwt
+                ]
+            ]);
+    error_log($path);
+    error_log($index);
     }
 }
