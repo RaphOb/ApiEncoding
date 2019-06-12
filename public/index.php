@@ -103,7 +103,7 @@ function encoding($path, $source, $id)
     $tableau = preg_split('/[\n]+/', $cmd);
     $height = $tableau[1];
     $index = array_search($height, array_keys($sizers));
-    $client = new GuzzleHttp\Client();
+    $client = new GuzzleHttp\Client(['timeout' => 20]);
     for ($i = $index; $i < sizeof($sizers); $i++) {
         $mp4Format = new X264();
         $mp4Format->setAudioCodec("aac");
@@ -118,16 +118,16 @@ function encoding($path, $source, $id)
             ->save($mp4Format, $directory . $source . '_' . $keys[$i] . '.mp4');
         $path = $directory . $source . '_' . $keys[$i] . '.mp4';
         $jwt = authenticateJwt($path);
-        $client->request('GET', '192.168.197.133:8080/api/updateVideoFormat', [
+
+        $client->request('HEAD', '192.168.197.133:8080/api/updateVideoFormat', [
             'future' => true,
                 'headers' => [
                     'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
                     "ID_VIDEO" => $id,
-                    'FORMAT' => $values[$i] . ' X ' . $keys[$i],
+                    'FORMAT' => $keys[$i],
                     'JWT' => $jwt
                 ]
             ]);
-    error_log($path);
-    error_log($index);
-    }
+
+   }
 }
