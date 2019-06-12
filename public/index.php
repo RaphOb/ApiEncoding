@@ -1,5 +1,6 @@
 <?php
 
+use Psr\Http\Message\ResponseInterface;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
 use Firebase\JWT\JWT;
@@ -76,7 +77,7 @@ function encode(Request $request, Response $response)
 
     if ($jwt == $jwtApi) {
         $httpcode = 201;
-      encoding($path, $source, $id_video);
+        encoding($path, $source, $id_video);
 
 
         echo(json_encode("c bon"));
@@ -103,7 +104,8 @@ function encoding($path, $source, $id)
     $tableau = preg_split('/[\n]+/', $cmd);
     $height = $tableau[1];
     $index = array_search($height, array_keys($sizers));
-    $client = new GuzzleHttp\Client(['timeout' => 20]);
+    $client = new GuzzleHttp\Client();
+    $promises = [];
     for ($i = $index; $i < sizeof($sizers); $i++) {
         $mp4Format = new X264();
         $mp4Format->setAudioCodec("aac");
@@ -119,15 +121,21 @@ function encoding($path, $source, $id)
         $path = $directory . $source . '_' . $keys[$i] . '.mp4';
         $jwt = authenticateJwt($path);
 
-        $client->request('HEAD', '192.168.197.133:8080/api/updateVideoFormat', [
-            'future' => true,
-                'headers' => [
-                    'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
-                    "ID_VIDEO" => $id,
-                    'FORMAT' => $keys[$i],
-                    'JWT' => $jwt
-                ]
-            ]);
 
-   }
+       $promises[] = $client->requestAsync('GET', '192.168.197.133:8080/api/updateVideoFormat', [
+            'headers' => [
+                'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
+                "ID_VIDEO" => $id,
+                'FORMAT' => $keys[$i],
+                'JWT' => $jwt
+            ]
+        ]);
+    }
+    GuzzleHttp\Promise\all($promises)->then(function (array $responses) {
+        foreach ($responses as $response) {
+            $profile = json_decode($response->getBody(), true);
+            // Do something with the profile.
+            echo $profile;
+        }
+    })->wait();
 }
