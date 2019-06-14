@@ -1,5 +1,9 @@
 <?php
 
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Handler\CurlMultiHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Promise;
 use Psr\Http\Message\ResponseInterface;
 use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
@@ -91,21 +95,21 @@ function encode(Request $request, Response $response)
 
 }
 
+
 function encoding($path, $source, $id)
 {
     $sizers = array(1080 => 1920, 720 => 1280, 480 => 720, 360 => 480, 240 => 352);
     $keys = array_keys($sizers);
     $values = array_Values($sizers);
-
     $ffmpeg = FFMpeg\FFMpeg::create();
     $video = $ffmpeg->open($path);
-    $directory = '/home/raphael/Desktop';
+    $directory = '/home/raphael/Desktop/';
     $cmd = shell_exec('ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of default=nw=1:nk=1 ' . $path);
     $tableau = preg_split('/[\n]+/', $cmd);
     $height = $tableau[1];
     $index = array_search($height, array_keys($sizers));
-    $client = new GuzzleHttp\Client();
-    $promises = [];
+
+    $client = new Client();
     for ($i = $index; $i < sizeof($sizers); $i++) {
         $mp4Format = new X264();
         $mp4Format->setAudioCodec("aac");
@@ -117,25 +121,23 @@ function encoding($path, $source, $id)
             ->frame(FFMpeg\Coordinate\TimeCode::fromSeconds(10))
             ->save('frame.jpg');
         $video
-            ->save($mp4Format, $directory . $source . '_' . $keys[$i] . '.mp4');
+            ->save($mp4Format, $directory . preg_split("/[.]+/",$source)[0] . '_' . $keys[$i] . '.mp4');
         $path = $directory . $source . '_' . $keys[$i] . '.mp4';
         $jwt = authenticateJwt($path);
 
+        try {
+            $client->request('GET', '192.168.197.133:8080/api/updateVideoFormat', [
+                'headers' => [
+                    'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
+                    "ID_VIDEO" => $id,
+                    'FORMAT' => $keys[$i],
+                    'JWT' => $jwt,
+                ],
 
-       $promises[] = $client->requestAsync('GET', '192.168.197.133:8080/api/updateVideoFormat', [
-            'headers' => [
-                'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
-                "ID_VIDEO" => $id,
-                'FORMAT' => $keys[$i],
-                'JWT' => $jwt
-            ]
-        ]);
-    }
-    GuzzleHttp\Promise\all($promises)->then(function (array $responses) {
-        foreach ($responses as $response) {
-            $profile = json_decode($response->getBody(), true);
-            // Do something with the profile.
-            echo $profile;
+            ]);
+        } catch (GuzzleException $e) {
+            error_log($e);
         }
-    })->wait();
+    }
+
 }
