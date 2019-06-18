@@ -122,13 +122,13 @@ function encoding($path, $source, $id)
             ->save('frame.jpg');
         $video
             ->save($mp4Format, $directory . preg_split("/[.]+/",$source)[0] . '_' . $keys[$i] . '.mp4');
-        $path = $directory . $source . '_' . $keys[$i] . '.mp4';
+        $path = $directory . preg_split("/[.]+/",$source)[0]. '_' . $keys[$i] . '.mp4';
         $jwt = authenticateJwt($path);
 
         try {
             $client->request('GET', '192.168.197.133:8080/api/updateVideoFormat', [
                 'headers' => [
-                    'PATH' => $directory . $source . '_' . $keys[$i] . '.mp4',
+                    'PATH' => $directory . preg_split("/[.]+/",$source)[0]. '_' . $keys[$i] . '.mp4',
                     "ID_VIDEO" => $id,
                     'FORMAT' => $keys[$i],
                     'JWT' => $jwt,
